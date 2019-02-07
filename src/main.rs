@@ -1,8 +1,12 @@
-use std::io::Read;
+mod bf;
+
+use std::io::BufReader;
+use std::io::BufRead;
 use std::fs::File;
 use std::env;
 use std::path::Path;
 
+use bf::BFVirtualMachine;
 
 fn main() {
     let args:Vec<_> = env::args().collect();
@@ -11,12 +15,20 @@ fn main() {
         return;
     }
 
-    let mut file = File::open(&args[1]).expect("Filed to open file");
+    let file = File::open(&args[1]).expect("Filed to open file");
+    let file_data = BufReader::new(file);
 
-    let mut buf:[u8; 1] = [0];
+    let mut vm  = BFVirtualMachine::new();
 
-    while file.read_exact(&mut buf).is_ok() {
-        println!("{}", buf[0] as char);
+    for line in file_data.lines() {
+        for c in line.expect("Unable to read line").chars() {
+            match vm.parse_char(c) {
+                Err(why) => panic!("{}", why),
+                Ok(ret_val) => {
+                    assert!(ret_val == 0);
+                }
+            }
+        }
     }
 
     return;
