@@ -1,7 +1,6 @@
 mod bf;
 
-use std::io::BufReader;
-use std::io::BufRead;
+use std::io::Read;
 use std::fs::File;
 use std::env;
 use std::path::Path;
@@ -15,20 +14,19 @@ fn main() {
         return;
     }
 
-    let file = File::open(&args[1]).expect("Filed to open file");
-    let file_data = BufReader::new(file);
+    let mut file = File::open(&args[1]).expect("Filed to open file");
 
     let mut vm  = BFVirtualMachine::new();
 
-    for line in file_data.lines() {
-        for c in line.expect("Unable to read line").chars() {
-            match vm.parse_char(c) {
-                Err(why) => panic!("{}", why),
-                Ok(ret_val) => {
-                    assert!(ret_val == 0);
-                }
-            }
-        }
+    let mut prog = String::new();
+
+    let _ = file.read_to_string(&mut prog).expect("Failed to read file");
+
+    match vm.run_from_string(prog) {
+        Ok(ret) => if ret != 0 {
+            panic!("Ret code of {:?}", ret);
+        },
+        Err(why) => panic!("{:?}", why)
     }
 
     return;
