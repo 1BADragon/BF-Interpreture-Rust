@@ -2,13 +2,14 @@ use std::vec::Vec;
 use std::io::Read;
 use std::collections::linked_list::LinkedList;
 
-struct bracket_marker {
+struct BracketMarker {
     index: usize,
+    matching: Option<usize>,
 }
 
 
 pub struct BFVirtualMachine {
-    stack: LinkedList<bracket_marker>,
+    stack: LinkedList<BracketMarker>,
     data_index: isize,
     non_neg: Vec<u8>,
     neg: Vec<u8>,
@@ -17,7 +18,7 @@ pub struct BFVirtualMachine {
 
 impl BFVirtualMachine {
     pub fn new() -> BFVirtualMachine {
-        let vm = BFVirtualMachine{
+        let mut vm = BFVirtualMachine{
             stack: LinkedList::new(),
             data_index: 0,
             non_neg : Vec::new(),
@@ -39,10 +40,14 @@ impl BFVirtualMachine {
                 '-' => self.dec_val(),
                 '.' => self.output(),
                 ',' => self.input(),
-                '[' => index = self.start_loop(),
-                ']' => index = self.end_loop(),
+                '[' => index = self.start_loop(index, &bytes),
+                ']' => index = self.end_loop(index),
+                '\n' | ' ' => {}, 
+                x @ _ => panic!("Unexpected character encoundered: {}", x),
             }
+            index += 1;
         }
+        println!("{:?}", self.non_neg);
         Ok(0)
     }
 
@@ -64,7 +69,7 @@ impl BFVirtualMachine {
         }
     }
 
-    fn get_val(&mut self) -> u8 {
+    fn get_val(&self) -> u8 {
         if self.data_index >= 0 {
             return self.non_neg[self.data_index.abs() as usize];
         }
@@ -85,11 +90,11 @@ impl BFVirtualMachine {
     }
 
     fn inc_val(&mut self) {
-        self.set_val(self.get_val() + 1);
+        self.set_val(self.get_val().wrapping_add(1));
     }
 
     fn dec_val(&mut self) {
-        self.set_val(self.get_val() - 1);
+        self.set_val(self.get_val().wrapping_sub(1));
     }
 
     fn output(&self) {
@@ -105,6 +110,46 @@ impl BFVirtualMachine {
         match input {
             Some(data) => self.set_val(data),
             None => panic!("Failed to read data"),
+        }
+    }
+
+    fn start_loop(&mut self, curr_index: usize, prog: &Vec<u8>) -> usize {
+        let marker = if self.stack.len() > 0 && self.stack.front().unwrap().index == curr_index {
+            self.stack.pop_front().unwrap()
+        }
+        else
+        {
+            BracketMarker{index: curr_index, matching: None}
+        };
+
+        let new_index = if self.get_val() == 0 {
+            let mut i = curr_index;
+            while prog[i] as char == ']' {
+                i += 1;
+            }
+            i
+        }
+        else
+        {
+            self.stack.push_front(marker);
+            curr_index
+        };
+
+        new_index
+    }
+
+    fn end_loop(&mut self, curr_index: usize) -> usize {
+        let front = self.stack.front_mut();
+        if front.is_some() {
+            let mut m = front.unwrap();
+            if m.matching.is_none() {
+                m.matching = Some(curr_index);
+            }
+            return m.index;
+        }
+        else
+        {
+            panic!("] found without starting [");
         }
     }
 }
