@@ -32,6 +32,7 @@ impl BFVirtualMachine {
     pub fn run_from_string(&mut self, prog: String) -> Result<i32, String> {
         let bytes = prog.into_bytes(); // Only care about a few ascii characters
         let mut index:usize = 0;
+        let mut skip = false;
         while index < bytes.len() {
             match bytes[index] as char {
                 '<' => self.mov_left(),
@@ -42,12 +43,14 @@ impl BFVirtualMachine {
                 ',' => self.input(),
                 '[' => index = self.start_loop(index, &bytes),
                 ']' => index = self.end_loop(index),
-                '\n' | ' ' => {}, 
-                x @ _ => panic!("Unexpected character encoundered: {}", x),
+                  _ => {skip = true},
+            }
+            if skip {
+                println!("{:?} : {:?}", self.non_neg, bytes[index] as char);
+                skip = false;
             }
             index += 1;
         }
-        println!("{:?}", self.non_neg);
         Ok(0)
     }
 
@@ -124,7 +127,13 @@ impl BFVirtualMachine {
 
         let new_index = if self.get_val() == 0 {
             let mut i = curr_index;
-            while prog[i] as char == ']' {
+            let mut nest_count = 0;
+            while (i < prog.len()) && !(prog[i] as char == ']' && nest_count == 0){
+                match prog[i] as char {
+                    '[' => nest_count += 1,
+                    ']' => nest_count -= 1,
+                    _ => {}
+                }
                 i += 1;
             }
             i
@@ -145,7 +154,7 @@ impl BFVirtualMachine {
             if m.matching.is_none() {
                 m.matching = Some(curr_index);
             }
-            return m.index;
+            return m.index - 1;
         }
         else
         {
