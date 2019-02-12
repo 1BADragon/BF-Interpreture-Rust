@@ -32,7 +32,6 @@ impl BFVirtualMachine {
     pub fn run_from_string(&mut self, prog: String) -> Result<i32, String> {
         let bytes = prog.into_bytes(); // Only care about a few ascii characters
         let mut index:usize = 0;
-        let mut skip = false;
         while index < bytes.len() {
             match bytes[index] as char {
                 '<' => self.mov_left(),
@@ -43,12 +42,8 @@ impl BFVirtualMachine {
                 ',' => self.input(),
                 '[' => index = self.start_loop(index, &bytes),
                 ']' => index = self.end_loop(index),
-                  _ => {skip = true},
-            }
-            if skip {
-                println!("{:?} : {:?}", self.non_neg, bytes[index] as char);
-                skip = false;
-            }
+                  _ => {},
+            }            
             index += 1;
         }
         Ok(0)
@@ -112,7 +107,7 @@ impl BFVirtualMachine {
             .map(|byte| byte as u8);
         match input {
             Some(data) => self.set_val(data),
-            None => panic!("Failed to read data"),
+            None => self.set_val(0),
         }
     }
 
@@ -126,17 +121,22 @@ impl BFVirtualMachine {
         };
 
         let new_index = if self.get_val() == 0 {
-            let mut i = curr_index;
-            let mut nest_count = 0;
-            while (i < prog.len()) && !(prog[i] as char == ']' && nest_count == 0){
-                match prog[i] as char {
-                    '[' => nest_count += 1,
-                    ']' => nest_count -= 1,
-                    _ => {}
-                }
-                i += 1;
+            if marker.matching.is_some() {
+                marker.matching.unwrap()
             }
-            i
+            else {
+                let mut i = curr_index + 1; // skip the current '['
+                let mut nest_count = 0;
+                while (i < prog.len()) && !(prog[i] as char == ']' && nest_count == 0){
+                    match prog[i] as char {
+                        '[' => nest_count += 1,
+                        ']' => nest_count -= 1,
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                i
+            }
         }
         else
         {

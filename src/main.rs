@@ -28,6 +28,7 @@ fn main() {
         },
         Err(why) => panic!("{:?}", why)
     }
+    println!();
 
     return;
 }
